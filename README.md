@@ -1,1 +1,1 @@
-# findaden-core
+# homie-core

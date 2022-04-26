@@ -1,0 +1,22 @@
+name: deploy
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Install SSH key
+      uses: shimataro/ssh-key-action@v2
+      with:
+        key: ${{ secrets.SSH_KEY }}
+        name: id_rsa # optional
+        known_hosts: ${{ secrets.KNOWN_HOSTS }}
+        if_key_exists: replace # fail # replace / ignore / fail; optional (defaults to fail)
+    - name: Push to server
+      run: |
+        ssh -o StrictHostKeyChecking=no developer@${{ secrets.HOST }} 'cd /home/developer/homie/homie-core;git pull;PG_DSN=${{ secrets.PG_DSN }} make rebuild'
