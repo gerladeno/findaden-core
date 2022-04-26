@@ -10,4 +10,4 @@ down:
 	docker-compose down
 
 rebuild:
-	docker-compose up -d --remove-orphans --force-recreate --build auth-service
+	docker-compose up -d --remove-orphans --force-recreate --build core-service
