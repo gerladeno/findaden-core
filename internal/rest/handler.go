@@ -70,7 +70,12 @@ func (h *handler) getConfig(w http.ResponseWriter, r *http.Request) {
 	writeResponse(w, config)
 }
 
-func (h *handler) getRegions(w http.ResponseWriter, _ *http.Request) {
-	// TODO: get ranges from db
-	writeResponse(w, []models.Region{{ID: 1}, {ID: 2}, {ID: 3}, {ID: 4}, {ID: 5}, {ID: 6}, {ID: 7}, {ID: 8}, {ID: 9}, {ID: 10}})
+func (h *handler) getRegions(w http.ResponseWriter, r *http.Request) {
+	result, err := h.service.GetRegions(r.Context())
+	if err != nil {
+		h.log.Warnf("err getting regions: %v", err)
+		writeErrResponse(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+	writeResponse(w, result)
 }

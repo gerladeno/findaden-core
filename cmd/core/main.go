@@ -8,6 +8,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"github.com/gerladeno/homie-core/internal"
 	"net/http"
 	"os"
 	"os/signal"
@@ -41,7 +42,8 @@ func main() {
 	if err = store.Migrate(); err != nil {
 		log.Panicf("err migrating pg: %v", err)
 	}
-	router := rest.NewRouter(log, store, mustGetPrivateKey(publicSigningKey), domain, version)
+	app := internal.NewApp(log, store)
+	router := rest.NewRouter(log, app, mustGetPrivateKey(publicSigningKey), domain, version)
 	if err = startServer(ctx, router, log); err != nil {
 		log.Panic(err)
 	}

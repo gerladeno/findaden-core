@@ -63,3 +63,9 @@ func (s *Storage) GetConfig(ctx context.Context, uuid string) (*models.Config, e
 	s.db.WithContext(ctx).Model(&cfg).Where("uuid = ?", uuid).First(&cfg)
 	return &cfg, s.db.Error
 }
+
+func (s *Storage) GetRegions(ctx context.Context) ([]*models.Region, error) {
+	var regions []*models.Region
+	s.db.WithContext(ctx).Model(&models.Region{}).Find(&regions)
+	return regions, s.db.Error
+}

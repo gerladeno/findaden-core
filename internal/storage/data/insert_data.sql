@@ -1,0 +1,12 @@
+INSERT INTO public.regions (id, created_at, updated_at, deleted_at, name, description) VALUES (1, '2022-04-26 20:31:11.382765 +00:00', '2022-04-26 20:31:11.382765 +00:00', null, 'Центральный', '');
+INSERT INTO public.regions (id, created_at, updated_at, deleted_at, name, description) VALUES (2, '2022-04-26 20:31:11.382765 +00:00', '2022-04-26 20:31:11.382765 +00:00', null, 'Северный', '');
+INSERT INTO public.regions (id, created_at, updated_at, deleted_at, name, description) VALUES (3, '2022-04-26 20:31:11.382765 +00:00', '2022-04-26 20:31:11.382765 +00:00', null, 'Северо-Восточный', '');
+INSERT INTO public.regions (id, created_at, updated_at, deleted_at, name, description) VALUES (4, '2022-04-26 20:31:11.382765 +00:00', '2022-04-26 20:31:11.382765 +00:00', null, 'Восточный', '');
+INSERT INTO public.regions (id, created_at, updated_at, deleted_at, name, description) VALUES (5, '2022-04-26 20:31:11.382765 +00:00', '2022-04-26 20:31:11.382765 +00:00', null, 'Юго-Восточный', '');
+INSERT INTO public.regions (id, created_at, updated_at, deleted_at, name, description) VALUES (6, '2022-04-26 20:31:11.382765 +00:00', '2022-04-26 20:31:11.382765 +00:00', null, 'Южный', '');
+INSERT INTO public.regions (id, created_at, updated_at, deleted_at, name, description) VALUES (7, '2022-04-26 20:31:11.382765 +00:00', '2022-04-26 20:31:11.382765 +00:00', null, 'Юго-Западный', '');
+INSERT INTO public.regions (id, created_at, updated_at, deleted_at, name, description) VALUES (8, '2022-04-26 20:31:11.382765 +00:00', '2022-04-26 20:31:11.382765 +00:00', null, 'Западный', '');
+INSERT INTO public.regions (id, created_at, updated_at, deleted_at, name, description) VALUES (9, '2022-04-26 20:31:11.382765 +00:00', '2022-04-26 20:31:11.382765 +00:00', null, 'Северо-Западный', '');
+INSERT INTO public.regions (id, created_at, updated_at, deleted_at, name, description) VALUES (10, '2022-04-26 20:31:11.382765 +00:00', '2022-04-26 20:31:11.382765 +00:00', null, 'Зеленоградский', '');
+INSERT INTO public.regions (id, created_at, updated_at, deleted_at, name, description) VALUES (11, '2022-04-26 20:31:11.382765 +00:00', '2022-04-26 20:31:11.382765 +00:00', null, 'Троицкий', '');
+INSERT INTO public.regions (id, created_at, updated_at, deleted_at, name, description) VALUES (12, '2022-04-26 20:31:11.382765 +00:00', '2022-04-26 20:31:11.382765 +00:00', null, 'Новомосковский', '');
