@@ -13,7 +13,7 @@ import (
 
 type Claims struct {
 	jwt.StandardClaims
-	ID string `json:"id"`
+	UUID string `json:"uuid"`
 }
 
 type idType string
@@ -58,13 +58,13 @@ func parseToken(accessToken string, key *rsa.PublicKey) (string, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
 			return nil, common.ErrInvalidSigningMethod
 		}
-		return &key, nil
+		return key, nil
 	})
 	if err != nil {
 		return "", err
 	}
 	if claims, ok := token.Claims.(*Claims); ok && token.Valid {
-		return claims.ID, nil
+		return claims.UUID, nil
 	}
 	return "", common.ErrInvalidAccessToken
 }

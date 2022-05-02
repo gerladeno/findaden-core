@@ -8,12 +8,13 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"github.com/gerladeno/homie-core/internal"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/gerladeno/homie-core/internal"
 
 	"github.com/gerladeno/homie-core/internal/rest"
 	"github.com/gerladeno/homie-core/internal/storage"
@@ -43,7 +44,7 @@ func main() {
 		log.Panicf("err migrating pg: %v", err)
 	}
 	app := internal.NewApp(log, store)
-	router := rest.NewRouter(log, app, mustGetPrivateKey(publicSigningKey), domain, version)
+	router := rest.NewRouter(log, app, mustGetPublicKey(publicSigningKey), domain, version)
 	if err = startServer(ctx, router, log); err != nil {
 		log.Panic(err)
 	}
@@ -77,13 +78,13 @@ func startServer(ctx context.Context, router http.Handler, log *logrus.Logger) e
 	return s.Shutdown(gfCtx)
 }
 
-func mustGetPrivateKey(keyBytes []byte) *rsa.PublicKey {
+func mustGetPublicKey(keyBytes []byte) *rsa.PublicKey {
 	if len(keyBytes) == 0 {
-		panic("neither file private_rsa_key.pem nor env PUBLIC_SIGNING_KEY are set")
+		panic("file public.pub is missing or invalid")
 	}
 	block, _ := pem.Decode(keyBytes)
 	if block == nil {
-		panic("unable to decode private key to blocks")
+		panic("unable to decode public key to blocks")
 	}
 	key, err := x509.ParsePKIXPublicKey(block.Bytes)
 	if err != nil {

@@ -1,9 +1,35 @@
 package models
 
 import (
+	"database/sql/driver"
 	"encoding/json"
+	"errors"
 
 	"gorm.io/gorm"
+)
+
+type Gender int8
+
+func (g Gender) Value() (driver.Value, error) {
+	return int8(g), nil
+}
+
+func (g *Gender) Scan(src interface{}) error {
+	if src == nil {
+		return nil
+	}
+	v, ok := src.(int8)
+	if !ok {
+		return errors.New("err scanning gender")
+	}
+	*g = Gender(v)
+	return nil
+}
+
+const (
+	Any Gender = iota
+	Male
+	Female
 )
 
 type Config struct {
@@ -14,11 +40,25 @@ type Config struct {
 	Appearance Appearance     `json:"appearance" gorm:"foreignkey:UUID;references:UUID"`
 }
 
+type Profile struct {
+	Personal Personal       `json:"personal"`
+	Criteria SearchCriteria `json:"criteria"`
+}
+
 type Personal struct {
 	gorm.Model
 	UUID       string `json:"uuid"`
 	Username   string `json:"username"`
 	AvatarLink string `json:"avatar_link"`
+	Gender     Gender `json:"gender"`
+	Age        int8   `json:"age"`
+}
+
+type Relation struct {
+	gorm.Model
+	UUID     string
+	Target   string
+	Relation int8
 }
 
 type Appearance struct {
@@ -30,14 +70,15 @@ type Appearance struct {
 type SearchCriteria struct {
 	gorm.Model
 	UUID       string  `json:"uuid"`
-	Regions    Regions `json:"regions" gorm:"many2many:criteria_region;"`
+	Regions    Regions `json:"regions,omitempty" gorm:"many2many:criteria_region;"`
 	PriceRange Range   `json:"price_range" gorm:"embedded"`
+	Gender     Gender  `json:"gender"`
+	AgeRange   Range   `json:"age_range" gorm:"embedded"`
 }
 
 type Regions []Region
 
 func (r *Regions) UnmarshalJSON(b []byte) error {
-	// s := strings.Trim(string(b), "\"")
 	var dest []int64
 	if err := json.Unmarshal(b, &dest); err != nil {
 		return err

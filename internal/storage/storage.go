@@ -12,6 +12,15 @@ import (
 	"gorm.io/gorm"
 )
 
+type Relation int8
+
+const (
+	Liked Relation = iota
+	SuperLiked
+	Disliked
+	Neither
+)
+
 type Storage struct {
 	log     *logrus.Entry
 	db      *gorm.DB
@@ -42,6 +51,7 @@ func (s *Storage) Migrate() error {
 		&models.Appearance{},
 		&models.SearchCriteria{},
 		&models.Region{},
+		&models.Relation{},
 	); err != nil {
 		return fmt.Errorf("err migrating postgres")
 	}
@@ -52,8 +62,8 @@ func (s *Storage) SaveConfig(ctx context.Context, config *models.Config) error {
 	if config == nil {
 		return nil
 	}
-	if s.db.WithContext(ctx).Model(&config).Where("uuid = ?", config.UUID).Updates(&config).RowsAffected == 0 {
-		s.db.WithContext(ctx).Create(&config)
+	if s.db.WithContext(ctx).Model(config).Where("uuid = ?", config.UUID).Updates(config).RowsAffected == 0 {
+		s.db.WithContext(ctx).Create(config)
 	}
 	return s.db.Error
 }
@@ -61,6 +71,9 @@ func (s *Storage) SaveConfig(ctx context.Context, config *models.Config) error {
 func (s *Storage) GetConfig(ctx context.Context, uuid string) (*models.Config, error) {
 	var cfg models.Config
 	s.db.WithContext(ctx).Model(&cfg).Where("uuid = ?", uuid).First(&cfg)
+	if s.db.RowsAffected == 0 {
+		return nil, nil //nolint:nilnil
+	}
 	return &cfg, s.db.Error
 }
 
@@ -68,4 +81,41 @@ func (s *Storage) GetRegions(ctx context.Context) ([]*models.Region, error) {
 	var regions []*models.Region
 	s.db.WithContext(ctx).Model(&models.Region{}).Find(&regions)
 	return regions, s.db.Error
+}
+
+func (s *Storage) UpsertRelation(ctx context.Context, relation *models.Relation) error {
+	if relation == nil {
+		return nil
+	}
+	if s.db.WithContext(ctx).Model(relation).
+		Where("uuid = ?", relation.UUID).
+		Where("target_uuid = ?", relation.Target).
+		Updates(relation).RowsAffected == 0 {
+		s.db.WithContext(ctx).Create(relation)
+	}
+	return s.db.Error
+}
+
+func (s *Storage) ListRelated(ctx context.Context, uuid string, relation Relation, limit, offset int64) ([]*models.Config, error) { //nolint:lll
+	var uuids []string
+	if err := s.db.WithContext(ctx).
+		Select("target_uuid").
+		Find(uuids, "uuid = ?", uuid, "relation = ?", relation).Error; err != nil {
+		return nil, err
+	}
+	var result []*models.Config
+	s.db.WithContext(ctx).Limit(int(limit)).Offset(int(offset)).Find(&result, "uuid IN (?)", uuids)
+	return result, s.db.Error
+}
+
+func (s *Storage) ListUnrelated(ctx context.Context, uuid string, limit, offset int64) ([]*models.Config, error) {
+	var uuids []string
+	if err := s.db.WithContext(ctx).
+		Select("target_uuid").
+		Find(uuids, "uuid = ?", uuid).Error; err != nil {
+		return nil, err
+	}
+	var result []*models.Config
+	s.db.WithContext(ctx).Limit(int(limit)).Offset(int(offset)).Find(&result, "uuid NOT IN (?)", uuids)
+	return result, s.db.Error
 }

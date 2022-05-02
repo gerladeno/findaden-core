@@ -20,6 +20,11 @@ type Service interface {
 	SaveConfig(ctx context.Context, config *models.Config) error
 	GetConfig(ctx context.Context, uuid string) (*models.Config, error)
 	GetRegions(ctx context.Context) ([]*models.Region, error)
+	Like(ctx context.Context, uuid, targetUUID string, super bool) error
+	Dislike(ctx context.Context, uuid, targetUUID string) error
+	ListLikedProfiles(ctx context.Context, uuid string, limit, offset int64) ([]*models.Profile, error)
+	ListDislikedProfiles(ctx context.Context, uuid string, limit, offset int64) ([]*models.Profile, error)
+	GetMatches(ctx context.Context, uuid string, count int64) ([]*models.Profile, error)
 }
 
 const gitURL = "https://github.com/gerladeno/homie-core"
@@ -50,7 +55,11 @@ func NewRouter(log *logrus.Logger, service Service, key *rsa.PublicKey, host, ve
 				r.Group(func(r chi.Router) {
 					r.Get("/config", handler.getConfig)
 					r.Post("/config", handler.saveConfig)
-					// protected endpoints
+					r.Get("/matches", handler.getMatches)
+					r.Get("/like/{uuid}", handler.like)
+					r.Get("/dislike/{uuid}", handler.dislike)
+					r.Get("/liked", handler.listLiked)
+					r.Get("/disliked", handler.listDisliked)
 				})
 			})
 		})
