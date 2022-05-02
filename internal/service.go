@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"gorm.io/gorm"
 
 	"github.com/gerladeno/homie-core/internal/models"
 	"github.com/gerladeno/homie-core/internal/storage"
@@ -18,7 +19,7 @@ type Storage interface {
 	GetRegions(ctx context.Context) ([]*models.Region, error)
 	UpsertRelation(ctx context.Context, relation *models.Relation) error
 	ListRelated(ctx context.Context, uuid string, relation storage.Relation, limit, offset int64) ([]*models.Config, error)
-	ListUnrelated(ctx context.Context, uuid string, limit, offset int64) ([]*models.Config, error)
+	ListMatches(ctx context.Context, uuid string, count int64) ([]*models.Config, error)
 }
 
 type App struct {
@@ -42,11 +43,14 @@ func (a *App) SaveConfig(ctx context.Context, config *models.Config) error {
 
 func (a *App) GetConfig(ctx context.Context, uuid string) (*models.Config, error) {
 	result, err := a.store.GetConfig(ctx, uuid)
-	if err != nil {
-		return nil, fmt.Errorf("err getting config: %w", err)
-	}
-	if result == nil {
+	switch {
+	case err == nil:
+	case errors.Is(err, gorm.ErrRecordNotFound):
 		return nil, ErrConfigNotFound
+	default:
+		err = fmt.Errorf("err getting config: %w", err)
+		a.log.Debug(err)
+		return nil, err
 	}
 	return result, nil
 }
@@ -113,7 +117,7 @@ func (a *App) ListDislikedProfiles(ctx context.Context, uuid string, limit, offs
 }
 
 func (a *App) GetMatches(ctx context.Context, uuid string, count int64) ([]*models.Profile, error) {
-	matches, err := a.store.ListUnrelated(ctx, uuid, count, 0)
+	matches, err := a.store.ListMatches(ctx, uuid, count)
 	if err != nil {
 		return nil, fmt.Errorf("err getting list of liked")
 	}

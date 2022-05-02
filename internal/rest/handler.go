@@ -4,10 +4,10 @@ import (
 	"crypto/rsa"
 	"encoding/json"
 	"errors"
+	"github.com/gerladeno/homie-core/internal"
 	"net/http"
 	"strconv"
 
-	"github.com/gerladeno/homie-core/internal"
 	"github.com/go-chi/chi/v5"
 
 	"github.com/gerladeno/homie-core/internal/models"
@@ -42,7 +42,7 @@ func (h *handler) saveConfig(w http.ResponseWriter, r *http.Request) {
 		writeErrResponse(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
-	config.UUID = uuid
+	config.SetUUID(uuid)
 	if err := h.service.SaveConfig(r.Context(), &config); err != nil {
 		h.log.Warnf("err saving config: %v", err)
 		writeErrResponse(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)

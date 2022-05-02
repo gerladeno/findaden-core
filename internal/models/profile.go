@@ -3,26 +3,30 @@ package models
 import (
 	"database/sql/driver"
 	"encoding/json"
-	"errors"
+	"fmt"
 
 	"gorm.io/gorm"
 )
 
 type Gender int8
 
-func (g Gender) Value() (driver.Value, error) {
-	return int8(g), nil
+func (g *Gender) Value() (driver.Value, error) {
+	return int8(*g), nil
 }
 
 func (g *Gender) Scan(src interface{}) error {
 	if src == nil {
 		return nil
 	}
-	v, ok := src.(int8)
-	if !ok {
-		return errors.New("err scanning gender")
+	v, err := driver.Int32.ConvertValue(src)
+	if err != nil {
+		return fmt.Errorf("err scanning gender: %w", err)
 	}
-	*g = Gender(v)
+	val, ok := v.(int64)
+	if !ok {
+		return fmt.Errorf("err scanning gender")
+	}
+	*g = Gender(val)
 	return nil
 }
 
@@ -38,6 +42,13 @@ type Config struct {
 	Personal   Personal       `json:"personal" gorm:"foreignkey:UUID;references:UUID"`
 	Criteria   SearchCriteria `json:"criteria" gorm:"foreignkey:UUID;references:UUID"`
 	Appearance Appearance     `json:"appearance" gorm:"foreignkey:UUID;references:UUID"`
+}
+
+func (c *Config) SetUUID(uuid string) {
+	c.UUID = uuid
+	c.Personal.UUID = uuid
+	c.Criteria.UUID = uuid
+	c.Appearance.UUID = uuid
 }
 
 type Profile struct {
@@ -105,4 +116,15 @@ type Region struct {
 type Range struct {
 	From *float64 `json:"from,omitempty"`
 	To   *float64 `json:"to,omitempty"`
+}
+
+func NewRange(from, to float64) Range {
+	r := Range{}
+	if from != 0 {
+		r.From = &from
+	}
+	if to != 0 {
+		r.To = &to
+	}
+	return r
 }
