@@ -4,9 +4,10 @@ import (
 	"crypto/rsa"
 	"encoding/json"
 	"errors"
-	"github.com/gerladeno/homie-core/internal"
 	"net/http"
 	"strconv"
+
+	"github.com/gerladeno/homie-core/internal"
 
 	"github.com/go-chi/chi/v5"
 

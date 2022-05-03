@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"fmt"
+
 	"github.com/gerladeno/homie-core/internal/models"
 	"github.com/gerladeno/homie-core/pkg/metrics"
 	"github.com/jackc/pgx/v4"
@@ -46,7 +47,7 @@ func New(log *logrus.Logger, dsn string) (*Storage, error) {
 
 func NewSQLiteStore(log *logrus.Entry, filename string) (*Storage, error) {
 	db, err := gorm.Open(sqlite.Open(filename), &gorm.Config{
-		//Logger: logger.Default.LogMode(logger.Info),
+		// Logger: logger.Default.LogMode(logger.Info),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("err connecting to postgres")
@@ -212,7 +213,7 @@ func (s *Storage) getCriteria(ctx context.Context, config *models.Config) ([]str
 		return nil, err
 	}
 	if len(uuidsByPersonal) == 0 {
-		return nil, nil //nolint:nilnil
+		return nil, nil
 	}
 	criteria := s.db.WithContext(ctx).Model(&models.SearchCriteria{}).Select("uuid")
 	if config.Criteria.PriceRange.From != nil {
@@ -229,7 +230,7 @@ func (s *Storage) getCriteria(ctx context.Context, config *models.Config) ([]str
 		return nil, err
 	}
 	if len(uuidsByCriteria) == 0 {
-		return nil, nil //nolint:nilnil
+		return nil, nil
 	}
 	return findMatchingStrings(uuidsByPersonal, uuidsByCriteria), nil
 }

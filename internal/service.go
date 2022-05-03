@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"gorm.io/gorm"
 
 	"github.com/gerladeno/homie-core/internal/models"

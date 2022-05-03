@@ -3,14 +3,15 @@ package internal
 import (
 	"context"
 	_ "embed"
+	"os"
+	"strings"
+	"testing"
+
 	"github.com/gerladeno/homie-core/internal/models"
 	"github.com/gerladeno/homie-core/internal/storage"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"os"
-	"strings"
-	"testing"
 )
 
 type LogicSuite struct {
@@ -255,11 +256,13 @@ func (s *LogicSuite) TestGetMatchesBySexAndAge() {
 	cfg.SetUUID("first")
 	err := s.app.SaveConfig(context.Background(), &cfg)
 	require.NoError(s.T(), err)
-	cfg2 := models.Config{Personal: models.Personal{Gender: models.Female, Age: 28},
+	cfg2 := models.Config{
+		Personal: models.Personal{Gender: models.Female, Age: 28},
 		Criteria: models.SearchCriteria{
 			Gender:   models.Any,
 			AgeRange: models.NewRange(22, 30),
-		}}
+		},
+	}
 	cfg2.SetUUID("second")
 	err = s.app.SaveConfig(context.Background(), &cfg2)
 	require.NoError(s.T(), err)
@@ -268,11 +271,13 @@ func (s *LogicSuite) TestGetMatchesBySexAndAge() {
 	require.NoError(s.T(), err)
 	require.Len(s.T(), matches, 0)
 
-	cfg3 := models.Config{Personal: models.Personal{Gender: models.Male, Age: 28},
+	cfg3 := models.Config{
+		Personal: models.Personal{Gender: models.Male, Age: 28},
 		Criteria: models.SearchCriteria{
 			Gender:   models.Male,
 			AgeRange: models.NewRange(22, 30),
-		}}
+		},
+	}
 	cfg3.SetUUID("first")
 	err = s.app.SaveConfig(context.Background(), &cfg3)
 	require.NoError(s.T(), err)
@@ -291,11 +296,13 @@ func (s LogicSuite) TestGetMatchesMatchButMet() {
 	cfg.SetUUID("first")
 	err := s.app.SaveConfig(context.Background(), &cfg)
 	require.NoError(s.T(), err)
-	cfg2 := models.Config{Personal: models.Personal{Gender: models.Male, Age: 28},
+	cfg2 := models.Config{
+		Personal: models.Personal{Gender: models.Male, Age: 28},
 		Criteria: models.SearchCriteria{
 			Gender:   models.Male,
 			AgeRange: models.NewRange(22, 30),
-		}}
+		},
+	}
 	cfg2.SetUUID("second")
 	err = s.app.SaveConfig(context.Background(), &cfg2)
 	require.NoError(s.T(), err)
