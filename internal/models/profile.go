@@ -2,7 +2,6 @@ package models
 
 import (
 	"database/sql/driver"
-	"encoding/json"
 	"fmt"
 )
 
@@ -73,30 +72,11 @@ type Appearance struct {
 }
 
 type SearchCriteria struct {
-	UUID       string  `json:"uuid" gorm:"primarykey"`
-	Regions    Regions `json:"regions,omitempty" gorm:"many2many:criteria_region;"`
-	PriceRange Range   `json:"price_range" gorm:"embedded"`
-	Gender     Gender  `json:"gender"`
-	AgeRange   Range   `json:"age_range" gorm:"embedded"`
-}
-
-type Regions []Region
-
-func (r *Regions) UnmarshalJSON(b []byte) error {
-	var dest []int64
-	if err := json.Unmarshal(b, &dest); err != nil {
-		return err
-	}
-	result := make([]Region, 0, len(dest))
-	for _, elem := range dest {
-		result = append(result, Region{ID: elem})
-	}
-	*r = result
-	return nil
-}
-
-func (r Regions) MarshalJSON() ([]byte, error) {
-	return json.Marshal(r)
+	UUID       string   `json:"uuid" gorm:"primarykey"`
+	Regions    []Region `json:"regions" gorm:"many2many:uuid_regions"`
+	PriceRange Range    `json:"price_range" gorm:"embedded;embeddedPrefix:price_"`
+	Gender     Gender   `json:"gender"`
+	AgeRange   Range    `json:"age_range" gorm:"embedded;embeddedPrefix:age_"`
 }
 
 type Region struct {

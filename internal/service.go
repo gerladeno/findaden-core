@@ -119,7 +119,7 @@ func (a *App) ListDislikedProfiles(ctx context.Context, uuid string, limit, offs
 func (a *App) GetMatches(ctx context.Context, uuid string, count int64) ([]*models.Profile, error) {
 	matches, err := a.store.ListMatches(ctx, uuid, count)
 	if err != nil {
-		return nil, fmt.Errorf("err getting list of liked")
+		return nil, fmt.Errorf("err getting list of matches")
 	}
 	result := make([]*models.Profile, 0, len(matches))
 	for _, elem := range matches {

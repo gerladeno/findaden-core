@@ -38,7 +38,7 @@ func (h *handler) saveConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var config models.Config
-	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&config); err != nil || config.Personal.Gender == models.Any {
 		writeErrResponse(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}

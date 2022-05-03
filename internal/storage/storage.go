@@ -94,20 +94,22 @@ func (s *Storage) SaveConfig(ctx context.Context, config *models.Config) error {
 	if config == nil {
 		return nil
 	}
-	if s.db.WithContext(ctx).
-		Model(config).
-		Session(&gorm.Session{FullSaveAssociations: true}).
-		Updates(config).RowsAffected == 0 {
-		s.db.Create(config)
-	}
-	return s.db.Error
+	s.db.Session(&gorm.Session{FullSaveAssociations: true, Context: ctx}).Model(config).
+		Omit("Criteria.Regions.*").
+		Save(config)
+	return s.db.WithContext(ctx).
+		Model(&config.Criteria).
+		Association("Regions").
+		Replace(&config.Criteria.Regions)
 }
 
 func (s *Storage) GetConfig(ctx context.Context, uuid string) (*models.Config, error) {
 	var cfg models.Config
-	if err := s.db.WithContext(ctx).Model(&cfg).
+	if err := s.db.WithContext(ctx).
+		Model(&cfg).
 		Preload("Personal").
 		Preload("Criteria").
+		Preload("Criteria.Regions").
 		Preload("Appearance").
 		First(&cfg, "uuid = ?", uuid).Error; err != nil {
 		return nil, err
@@ -126,8 +128,6 @@ func (s *Storage) UpsertRelation(ctx context.Context, relation *models.Relation)
 		return nil
 	}
 	if s.db.WithContext(ctx).Model(relation).
-		Where("uuid = ?", relation.UUID).
-		Where("target_uuid = ?", relation.Target).
 		Updates(relation).RowsAffected == 0 {
 		s.db.Create(relation)
 	}
@@ -137,57 +137,75 @@ func (s *Storage) UpsertRelation(ctx context.Context, relation *models.Relation)
 func (s *Storage) ListRelated(ctx context.Context, uuid string, relation Relation, limit, offset int64) ([]*models.Config, error) { //nolint:lll
 	var uuids []string
 	if err := s.db.WithContext(ctx).
-		Select("target_uuid").
-		Find(uuids, "uuid = ?", uuid, "relation = ?", relation).Error; err != nil {
+		Model(&models.Relation{}).
+		Select("target").
+		Find(&uuids, "uuid = ?", uuid, "relation = ?", relation).Error; err != nil {
 		return nil, err
 	}
 	var result []*models.Config
-	s.db.Limit(int(limit)).Offset(int(offset)).Find(&result, "uuid IN (?)", uuids)
-	return result, s.db.Error
+	err := s.db.Limit(int(limit)).
+		Offset(int(offset)).
+		Preload("Personal").
+		Preload("Criteria").
+		Preload("Criteria.Regions").
+		Preload("Appearance").
+		Find(&result, "uuid IN (?)", uuids).Error
+	return result, err
 }
 
 func (s *Storage) ListMatches(ctx context.Context, uuid string, count int64) ([]*models.Config, error) {
 	var config models.Config
-	if err := s.db.WithContext(ctx).Model(&config).Where("uuid = ?", uuid).First(&config).Error; err != nil {
+	if err := s.db.WithContext(ctx).
+		Model(&config).
+		Preload("Personal").
+		Preload("Criteria").
+		Preload("Criteria.Regions").
+		First(&config, "uuid = ?", uuid).Error; err != nil {
 		return nil, err
 	}
-	matchingUUIDS, err := s.getCriteria(&config)
+	matchingUUIDS, err := s.getCriteria(ctx, &config)
 	if err != nil {
 		return nil, err
 	}
-	var unmetUUIDs []string
-	if err = s.db.Model(&config).Select("target_uuid").
-		Find(unmetUUIDs, "uuid = ?", uuid).Error; err != nil {
+	var metUUIDs []string
+	if err = s.db.WithContext(ctx).Model(&models.Relation{}).Select("target").
+		Find(&metUUIDs, "uuid = ?", uuid).Error; err != nil {
 		return nil, err
 	}
 	var result []*models.Config
-	s.db.Limit(int(count)).Find(&result, "uuid NOT IN (?)", unmetUUIDs, "uuid IN (?)", matchingUUIDS)
-	return result, s.db.Error
+	err = s.db.WithContext(ctx).
+		Limit(int(count)).
+		Preload("Personal").
+		Preload("Criteria").
+		Preload("Criteria.Regions").
+		Preload("Appearance").
+		Not(map[string]interface{}{"uuid": metUUIDs}).
+		Where(map[string]interface{}{"uuid": matchingUUIDS}).
+		Find(&result).Error
+	return result, err
 }
 
 const queryJoinRegions = `
-select distinct own.uuid as uuid
-from (select uuid, region_id
-      from search_criteria
-               join criteria_region cr on search_criteria.id = cr.search_criteria_id
-      where uuid = ?) own
-         join (select uuid, region_id
-               from search_criteria
-                        join criteria_region cr on search_criteria.id = cr.search_criteria_id
-               where uuid != ?) other
-              on own.region_id = other.region_id
+select distinct others.search_criteria_uuid
+from (select *
+      from uuid_regions
+      where search_criteria_uuid = ?) own
+         join (select *
+               from uuid_regions
+               where search_criteria_uuid != ?) others
+              on own.region_id = others.region_id
 `
 
-func (s *Storage) getCriteria(config *models.Config) ([]string, error) {
-	personal := s.db.Model(&models.Personal{}).Select("uuid")
+func (s *Storage) getCriteria(ctx context.Context, config *models.Config) ([]string, error) {
+	personal := s.db.WithContext(ctx).Model(&models.Personal{}).Select("uuid")
 	if config.Criteria.AgeRange.From != nil {
-		personal.Where("age >= ?", *config.Criteria.AgeRange.From)
+		personal = personal.Where("age >= ?", *config.Criteria.AgeRange.From)
 	}
 	if config.Criteria.AgeRange.To != nil {
-		personal.Where("age <= ?", *config.Criteria.AgeRange.To)
+		personal = personal.Where("age <= ?", *config.Criteria.AgeRange.To)
 	}
 	if config.Criteria.Gender != models.Any {
-		personal.Where("gender = ?", config.Criteria.Gender)
+		personal = personal.Where("gender = ?", config.Criteria.Gender)
 	}
 	var uuidsByPersonal []string
 	if err := personal.Find(&uuidsByPersonal).Error; err != nil {
@@ -196,18 +214,18 @@ func (s *Storage) getCriteria(config *models.Config) ([]string, error) {
 	if len(uuidsByPersonal) == 0 {
 		return nil, nil //nolint:nilnil
 	}
-	criteria := s.db.Model(&models.SearchCriteria{}).Select("uuid")
+	criteria := s.db.WithContext(ctx).Model(&models.SearchCriteria{}).Select("uuid")
 	if config.Criteria.PriceRange.From != nil {
-		criteria.Where("to >= ?", *config.Criteria.PriceRange.From)
+		criteria = criteria.Where("to >= ?", *config.Criteria.PriceRange.From)
 	}
 	if config.Criteria.PriceRange.To != nil {
-		criteria.Where("from <= ?", *config.Criteria.PriceRange.To)
+		criteria = criteria.Where("from <= ?", *config.Criteria.PriceRange.To)
 	}
-	if len([]models.Region(config.Criteria.Regions)) > 0 {
-		criteria.Where(queryJoinRegions, config.UUID, config.UUID)
+	if len(config.Criteria.Regions) > 0 {
+		criteria = criteria.Raw(queryJoinRegions, config.UUID, config.UUID)
 	}
 	var uuidsByCriteria []string
-	if err := personal.Find(&uuidsByCriteria).Error; err != nil {
+	if err := criteria.Find(&uuidsByCriteria).Error; err != nil {
 		return nil, err
 	}
 	if len(uuidsByCriteria) == 0 {
