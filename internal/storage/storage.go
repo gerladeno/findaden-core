@@ -3,13 +3,12 @@ package storage
 import (
 	"context"
 	"fmt"
-	"gorm.io/driver/sqlite"
-
 	"github.com/gerladeno/homie-core/internal/models"
 	"github.com/gerladeno/homie-core/pkg/metrics"
 	"github.com/jackc/pgx/v4"
 	"github.com/sirupsen/logrus"
 	"gorm.io/driver/postgres"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -46,7 +45,9 @@ func New(log *logrus.Logger, dsn string) (*Storage, error) {
 }
 
 func NewSQLiteStore(log *logrus.Entry, filename string) (*Storage, error) {
-	db, err := gorm.Open(sqlite.Open(filename), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open(filename), &gorm.Config{
+		//Logger: logger.Default.LogMode(logger.Info),
+	})
 	if err != nil {
 		return nil, fmt.Errorf("err connecting to postgres")
 	}
@@ -64,8 +65,15 @@ func (s *Storage) Exec(query string) error {
 	return s.db.Exec(query).Error
 }
 
-func (s *Storage) Truncate(table interface{}) error {
-	return s.db.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(table).Error
+func (s *Storage) Truncate(tables ...interface{}) error {
+	var err error
+	db := s.db.Session(&gorm.Session{AllowGlobalUpdate: true})
+	for _, table := range tables {
+		if err = db.Unscoped().Delete(table).Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *Storage) Migrate() error {
@@ -86,7 +94,10 @@ func (s *Storage) SaveConfig(ctx context.Context, config *models.Config) error {
 	if config == nil {
 		return nil
 	}
-	if s.db.WithContext(ctx).Model(config).Where("uuid = ?", config.UUID).Updates(config).RowsAffected == 0 {
+	if s.db.WithContext(ctx).
+		Model(config).
+		Session(&gorm.Session{FullSaveAssociations: true}).
+		Updates(config).RowsAffected == 0 {
 		s.db.Create(config)
 	}
 	return s.db.Error
@@ -98,8 +109,7 @@ func (s *Storage) GetConfig(ctx context.Context, uuid string) (*models.Config, e
 		Preload("Personal").
 		Preload("Criteria").
 		Preload("Appearance").
-		Where("uuid = ?", uuid).
-		Take(&cfg).Error; err != nil {
+		First(&cfg, "uuid = ?", uuid).Error; err != nil {
 		return nil, err
 	}
 	return &cfg, nil

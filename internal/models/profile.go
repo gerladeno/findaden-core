@@ -4,8 +4,6 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
-
-	"gorm.io/gorm"
 )
 
 type Gender int8
@@ -37,8 +35,7 @@ const (
 )
 
 type Config struct {
-	gorm.Model
-	UUID       string         `json:"uuid" gorm:"uniqueIndex"`
+	UUID       string         `json:"uuid" gorm:"primarykey"`
 	Personal   Personal       `json:"personal" gorm:"foreignkey:UUID;references:UUID"`
 	Criteria   SearchCriteria `json:"criteria" gorm:"foreignkey:UUID;references:UUID"`
 	Appearance Appearance     `json:"appearance" gorm:"foreignkey:UUID;references:UUID"`
@@ -57,8 +54,7 @@ type Profile struct {
 }
 
 type Personal struct {
-	gorm.Model
-	UUID       string `json:"uuid"`
+	UUID       string `json:"uuid" gorm:"primarykey"`
 	Username   string `json:"username"`
 	AvatarLink string `json:"avatar_link"`
 	Gender     Gender `json:"gender"`
@@ -66,21 +62,18 @@ type Personal struct {
 }
 
 type Relation struct {
-	gorm.Model
-	UUID     string
-	Target   string
+	UUID     string `gorm:"primaryKey"`
+	Target   string `gorm:"primaryKey"`
 	Relation int8
 }
 
 type Appearance struct {
-	gorm.Model
-	UUID  string `json:"uuid"`
+	UUID  string `json:"uuid" gorm:"primarykey"`
 	Theme int64  `json:"theme"`
 }
 
 type SearchCriteria struct {
-	gorm.Model
-	UUID       string  `json:"uuid"`
+	UUID       string  `json:"uuid" gorm:"primarykey"`
 	Regions    Regions `json:"regions,omitempty" gorm:"many2many:criteria_region;"`
 	PriceRange Range   `json:"price_range" gorm:"embedded"`
 	Gender     Gender  `json:"gender"`
@@ -107,8 +100,7 @@ func (r Regions) MarshalJSON() ([]byte, error) {
 }
 
 type Region struct {
-	gorm.Model
-	ID          int64  `json:"id"`
+	ID          int64  `json:"id" gorm:"primarykey"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
 }

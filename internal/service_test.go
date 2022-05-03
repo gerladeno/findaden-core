@@ -29,7 +29,13 @@ func (s *LogicSuite) SetupSuite() {
 	require.NoError(s.T(), err)
 	err = store.Migrate()
 	require.NoError(s.T(), err)
-	err = store.Truncate(&models.Regions{})
+	err = store.Truncate(
+		&models.Regions{},
+		&models.Config{},
+		&models.SearchCriteria{},
+		&models.Personal{},
+		&models.Appearance{},
+	)
 	require.NoError(s.T(), err)
 	for _, stmt := range strings.Split(inserts, "\n") {
 		if strings.Trim(stmt, "") != "" {
@@ -72,6 +78,54 @@ func (s *LogicSuite) TestSaveGetConfig() {
 	require.Equal(s.T(), *cfg.Criteria.PriceRange.From, *cfg2.Criteria.PriceRange.From)
 	_, err = s.app.GetConfig(context.Background(), uuid+"d")
 	require.ErrorIs(s.T(), err, ErrConfigNotFound)
+}
+
+func (s *LogicSuite) TestUpdateGetConfig() {
+	uuid := "797bcfb5-ca07-11ec-a6c3-049226c2eb3c"
+	cfg := models.Config{
+		Personal: models.Personal{
+			Username:   "bober",
+			AvatarLink: "",
+			Gender:     models.Male,
+			Age:        19,
+		},
+		Criteria: models.SearchCriteria{
+			Regions:    models.Regions([]models.Region{{ID: 1}, {ID: 3}}),
+			PriceRange: models.NewRange(20000, 45000),
+			Gender:     0,
+			AgeRange:   models.NewRange(22, 0),
+		},
+		Appearance: models.Appearance{Theme: 12},
+	}
+	cfg.SetUUID(uuid)
+	err := s.app.SaveConfig(context.Background(), &cfg)
+	require.NoError(s.T(), err)
+	cfg = models.Config{
+		Personal: models.Personal{
+			Username:   "gobel",
+			AvatarLink: "",
+			Gender:     models.Male,
+			Age:        25,
+		},
+		Criteria: models.SearchCriteria{
+			Regions:    models.Regions([]models.Region{{ID: 3}, {ID: 5}}),
+			PriceRange: models.NewRange(30000, 55000),
+			Gender:     models.Female,
+			AgeRange:   models.NewRange(22, 0),
+		},
+		Appearance: models.Appearance{Theme: 22},
+	}
+	cfg.SetUUID(uuid)
+	err = s.app.SaveConfig(context.Background(), &cfg)
+	require.NoError(s.T(), err)
+	cfg.SetUUID(uuid + "d")
+	err = s.app.SaveConfig(context.Background(), &cfg)
+	require.NoError(s.T(), err)
+	cfg2, err := s.app.GetConfig(context.Background(), uuid)
+	require.NoError(s.T(), err)
+	require.Equal(s.T(), cfg.Personal.Username, cfg2.Personal.Username)
+	require.Equal(s.T(), cfg.Appearance.Theme, cfg2.Appearance.Theme)
+	require.Equal(s.T(), *cfg.Criteria.PriceRange.From, *cfg2.Criteria.PriceRange.From)
 }
 
 func TestLogicSuite(t *testing.T) {
