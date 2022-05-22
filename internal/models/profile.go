@@ -34,7 +34,7 @@ const (
 )
 
 type Config struct {
-	UUID     string          `json:"uuid"`
+	UUID     string          `json:"uuid,omitempty"`
 	Personal *Personal       `json:"personal,omitempty"`
 	Criteria *SearchCriteria `json:"criteria,omitempty"`
 	Settings *Settings       `json:"settings,omitempty"`
@@ -54,13 +54,13 @@ func (c *Config) SetUUID(uuid string) {
 }
 
 type Profile struct {
-	UUID     string          `json:"uuid"`
+	UUID     string          `json:"uuid,omitempty"`
 	Personal *Personal       `json:"personal,omitempty"`
 	Criteria *SearchCriteria `json:"criteria,omitempty"`
 }
 
 type Personal struct {
-	UUID       string `json:"uuid"`
+	UUID       string `json:"uuid,omitempty"`
 	Username   string `json:"username"`
 	AvatarLink string `json:"avatar_link"`
 	Gender     Gender `json:"gender"`
@@ -74,12 +74,12 @@ type Relation struct {
 }
 
 type Settings struct {
-	UUID  string `json:"uuid"`
+	UUID  string `json:"uuid,omitempty"`
 	Theme int64  `json:"theme"`
 }
 
 type SearchCriteria struct {
-	UUID       string  `json:"uuid"`
+	UUID       string  `json:"uuid,omitempty"`
 	Regions    []int64 `json:"regions"`
 	PriceRange Range   `json:"price_range"`
 	Gender     Gender  `json:"gender"`
