@@ -426,6 +426,14 @@ ON personal.uuid = criteria.uuid`, quotedUUIDs)
 	return nil
 }
 
+func (s *Storage) GetProfiles(ctx context.Context, uuids []string) ([]*models.Profile, error) {
+	var profiles []*models.Profile
+	if err := s.getProfiles(ctx, &profiles, uuids); err != nil {
+		return nil, fmt.Errorf("err loading list of profiles: %w", err)
+	}
+	return profiles, nil
+}
+
 func (s *Storage) ListMatches(ctx context.Context, uuid string, count int64) ([]*models.Profile, error) {
 	var uuids []string
 	err := pgxscan.Select(ctx, s.db, &uuids,

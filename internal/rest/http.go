@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gerladeno/homie-core/pkg/chat"
+
 	"github.com/gerladeno/homie-core/internal/models"
 	"github.com/gerladeno/homie-core/pkg/metrics"
 	"github.com/go-chi/chi/v5"
@@ -25,6 +27,8 @@ type Service interface {
 	ListLikedProfiles(ctx context.Context, uuid string, limit, offset int64) ([]*models.Profile, error)
 	ListDislikedProfiles(ctx context.Context, uuid string, limit, offset int64) ([]*models.Profile, error)
 	GetMatches(ctx context.Context, uuid string, count int64) ([]*models.Profile, error)
+	GetDialog(ctx context.Context, client, target string) *chat.Hub
+	GetAllChats(ctx context.Context, uuid string) ([]*models.Profile, error)
 }
 
 const gitURL = "https://github.com/gerladeno/homie-core"
@@ -60,6 +64,8 @@ func NewRouter(log *logrus.Logger, service Service, key *rsa.PublicKey, host, ve
 					r.Get("/dislike/{uuid}", handler.dislike)
 					r.Get("/liked", handler.listLiked)
 					r.Get("/disliked", handler.listDisliked)
+					r.Get("/chats", handler.getAllChats)
+					r.HandleFunc("/chat/{uuid}", handler.chatHandler)
 				})
 			})
 		})

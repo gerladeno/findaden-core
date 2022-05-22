@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/gerladeno/homie-core/pkg/chat"
+
 	"github.com/go-chi/chi/v5"
 
 	"github.com/gerladeno/homie-core/internal/models"
@@ -157,6 +159,34 @@ func (h *handler) listDisliked(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeResponse(w, result)
+}
+
+func (h *handler) getAllChats(w http.ResponseWriter, r *http.Request) {
+	uuid, ok := h.getUUID(w, r)
+	if !ok {
+		return
+	}
+	profiles, err := h.service.GetAllChats(r.Context(), uuid)
+	if err != nil {
+		h.log.Warnf("err getting all chats: %v", err)
+		writeErrResponse(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+	writeResponse(w, profiles)
+}
+
+func (h *handler) chatHandler(w http.ResponseWriter, r *http.Request) {
+	uuid, ok := h.getUUID(w, r)
+	if !ok {
+		return
+	}
+	targetUUID := chi.URLParam(r, "uuid")
+	if !common.IsValidUUID(targetUUID) {
+		writeErrResponse(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+	hub := h.service.GetDialog(r.Context(), uuid, targetUUID)
+	chat.WebsocketChatHandler(hub, w, r)
 }
 
 func (h *handler) getUUID(w http.ResponseWriter, r *http.Request) (string, bool) {

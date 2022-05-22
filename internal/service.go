@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/gerladeno/homie-core/pkg/chat"
+
 	"github.com/gerladeno/homie-core/internal/models"
 	"github.com/gerladeno/homie-core/internal/storage"
 	"github.com/gerladeno/homie-core/pkg/common"
@@ -18,18 +20,42 @@ type Storage interface {
 	UpsertRelation(ctx context.Context, relation *models.Relation) error
 	ListRelated(ctx context.Context, uuid string, relation storage.Relation, limit, offset int64) ([]*models.Profile, error)
 	ListMatches(ctx context.Context, uuid string, count int64) ([]*models.Profile, error)
+	GetProfiles(ctx context.Context, uuids []string) ([]*models.Profile, error)
+}
+
+type Chat interface {
+	GetDialog(ctx context.Context, client, target string) *chat.Hub
+	GetAllChats(ctx context.Context, uuid string) ([]string, error)
 }
 
 type App struct {
-	log   *logrus.Entry
-	store Storage
+	log        *logrus.Entry
+	store      Storage
+	chatServer Chat
 }
 
-func NewApp(log *logrus.Logger, store Storage) *App {
+func NewApp(log *logrus.Logger, store Storage, chatServer Chat) *App {
 	return &App{
-		log:   log.WithField("module", "app"),
-		store: store,
+		log:        log.WithField("module", "app"),
+		store:      store,
+		chatServer: chatServer,
 	}
+}
+
+func (a *App) GetDialog(ctx context.Context, client, target string) *chat.Hub {
+	return a.chatServer.GetDialog(ctx, client, target)
+}
+
+func (a *App) GetAllChats(ctx context.Context, uuid string) ([]*models.Profile, error) {
+	uuids, err := a.chatServer.GetAllChats(ctx, uuid)
+	if err != nil {
+		return nil, fmt.Errorf("err getting list of uuids client chatted with: %w", err)
+	}
+	profiles, err := a.store.GetProfiles(ctx, uuids)
+	if err != nil {
+		return nil, fmt.Errorf("err getting list of profiles client chatted with: %w", err)
+	}
+	return profiles, nil
 }
 
 func (a *App) SaveConfig(ctx context.Context, config *models.Config) error {
@@ -85,7 +111,7 @@ func (a *App) Dislike(ctx context.Context, uuid, targetUUID string) error {
 		Relation: int8(relationType),
 	}
 	if err := a.store.UpsertRelation(ctx, &relation); err != nil {
-		return fmt.Errorf("err adding relation")
+		return fmt.Errorf("err adding relation: %w", err)
 	}
 	return nil
 }
@@ -109,7 +135,11 @@ func (a *App) ListDislikedProfiles(ctx context.Context, uuid string, limit, offs
 func (a *App) GetMatches(ctx context.Context, uuid string, count int64) ([]*models.Profile, error) {
 	matches, err := a.store.ListMatches(ctx, uuid, count)
 	if err != nil {
-		return nil, fmt.Errorf("err getting list of matches")
+		return nil, fmt.Errorf("err getting list of matches: %w", err)
 	}
 	return matches, nil
+}
+
+func (a *App) GetProfiles(ctx context.Context, uuids []string) ([]*models.Profile, error) {
+	return a.store.GetProfiles(ctx, uuids)
 }

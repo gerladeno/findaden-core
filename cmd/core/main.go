@@ -14,6 +14,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gerladeno/homie-core/pkg/chat"
+
 	"github.com/gerladeno/homie-core/internal"
 	"github.com/gerladeno/homie-core/internal/rest"
 	"github.com/gerladeno/homie-core/internal/storage"
@@ -43,7 +45,8 @@ func main() {
 	if err = store.Migrate(); err != nil {
 		log.Panicf("err migrating pg: %v", err)
 	}
-	app := internal.NewApp(log, store)
+	chatServer := chat.NewServer()
+	app := internal.NewApp(log, store, chatServer)
 	router := rest.NewRouter(log, app, mustGetPublicKey(publicSigningKey), domain, version)
 	if err = startServer(ctx, router, log); err != nil {
 		log.Panic(err)

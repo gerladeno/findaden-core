@@ -5,6 +5,8 @@ import (
 	_ "embed"
 	"testing"
 
+	"github.com/gerladeno/homie-core/pkg/chat"
+
 	"github.com/gerladeno/homie-core/pkg/common"
 
 	"github.com/gerladeno/homie-core/internal/models"
@@ -26,7 +28,7 @@ func (s *LogicSuite) SetupSuite() {
 	require.NoError(s.T(), err)
 	err = store.Migrate()
 	require.NoError(s.T(), err)
-	s.app = NewApp(log, store)
+	s.app = NewApp(log, store, chat.NewServer())
 }
 
 func (s *LogicSuite) SetupTest() {
