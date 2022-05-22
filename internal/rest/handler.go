@@ -4,10 +4,9 @@ import (
 	"crypto/rsa"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
-
-	"github.com/gerladeno/homie-core/internal"
 
 	"github.com/go-chi/chi/v5"
 
@@ -40,7 +39,7 @@ func (h *handler) saveConfig(w http.ResponseWriter, r *http.Request) {
 	}
 	var config models.Config
 	if err := json.NewDecoder(r.Body).Decode(&config); err != nil || config.Personal.Gender == models.Any {
-		writeErrResponse(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		writeErrResponse(w, fmt.Sprintf("%s: %v", http.StatusText(http.StatusBadRequest), err), http.StatusBadRequest)
 		return
 	}
 	config.SetUUID(uuid)
@@ -60,7 +59,7 @@ func (h *handler) getConfig(w http.ResponseWriter, r *http.Request) {
 	config, err := h.service.GetConfig(r.Context(), uuid)
 	switch {
 	case err == nil:
-	case errors.Is(err, internal.ErrConfigNotFound):
+	case errors.Is(err, common.ErrConfigNotFound):
 		writeErrResponse(w, http.StatusText(http.StatusNoContent), http.StatusNoContent)
 		return
 	}

@@ -3,6 +3,12 @@ lint:
 	go mod tidy
 	golangci-lint run ./...
 
+test:
+	docker-compose -f test-db-docker-compose.yml up -d
+	sleep 5
+	go test -race ./...
+	docker-compose -f test-db-docker-compose.yml down
+
 up:
 	docker-compose up -d
 

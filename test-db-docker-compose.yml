@@ -1,0 +1,10 @@
+services:
+  homie_test_pg:
+    image: postgres
+    container_name: homie_test_pg
+    environment:
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+    ports:
+      - "5433:5432"
+    command: [ "postgres", "-c", "log_statement=all" ]

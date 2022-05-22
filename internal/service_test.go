@@ -3,12 +3,12 @@ package internal
 import (
 	"context"
 	_ "embed"
-	"os"
-	"strings"
+	"github.com/gerladeno/homie-core/pkg/common"
 	"testing"
 
 	"github.com/gerladeno/homie-core/internal/models"
 	"github.com/gerladeno/homie-core/internal/storage"
+	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -19,62 +19,48 @@ type LogicSuite struct {
 	suite.Suite
 }
 
-const filename = "test.db"
-
-//go:embed storage/data/insert_data.sql
-var inserts string
-
 func (s *LogicSuite) SetupSuite() {
 	log := logrus.New()
-	store, err := storage.NewSQLiteStore(log.WithField("test", "db"), filename)
+	store, err := storage.New(context.Background(), log, "postgresql://test:test@localhost:5433/postgres?sslmode=disable")
 	require.NoError(s.T(), err)
 	err = store.Migrate()
 	require.NoError(s.T(), err)
-	err = store.Truncate(
-		&models.Region{},
-	)
-	require.NoError(s.T(), err)
-	for _, stmt := range strings.Split(inserts, "\n") {
-		if strings.Trim(stmt, "") != "" {
-			err = store.Exec(stmt)
-			require.NoError(s.T(), err)
-		}
-	}
+	//err = store.Truncate(context.Background(), "regions")
+	//require.NoError(s.T(), err)
 	s.app = NewApp(log, store)
 }
 
 func (s *LogicSuite) SetupTest() {
-	err := s.app.store.(*storage.Storage).Truncate(
-		&models.Config{},
-		&models.SearchCriteria{},
-		&models.Personal{},
-		&models.Appearance{},
-		&models.Relation{},
+	err := s.app.store.(*storage.Storage).Truncate(context.Background(),
+		"settings",
+		"config",
+		"personal",
+		"relations",
+		"search_criteria",
+		"uuid_regions",
 	)
 	require.NoError(s.T(), err)
 }
 
 func (s *LogicSuite) TearDownSuite() {
-	err := os.Remove(filename)
-	require.NoError(s.T(), err)
 }
 
 func (s *LogicSuite) TestSaveGetConfig() {
 	uuid := "797bcfb5-ca07-11ec-a6c3-049226c2eb3c"
 	cfg := models.Config{
-		Personal: models.Personal{
+		Personal: &models.Personal{
 			Username:   "bober",
 			AvatarLink: "",
 			Gender:     models.Male,
 			Age:        19,
 		},
-		Criteria: models.SearchCriteria{
-			Regions:    []models.Region{{ID: 1}, {ID: 3}},
+		Criteria: &models.SearchCriteria{
+			Regions:    []int64{1, 3},
 			PriceRange: models.NewRange(20000, 45000),
 			Gender:     models.Female,
 			AgeRange:   models.NewRange(22, 0),
 		},
-		Appearance: models.Appearance{Theme: 12},
+		Settings: &models.Settings{Theme: 12},
 	}
 	cfg.SetUUID(uuid)
 	err := s.app.SaveConfig(context.Background(), &cfg)
@@ -82,47 +68,47 @@ func (s *LogicSuite) TestSaveGetConfig() {
 	cfg2, err := s.app.GetConfig(context.Background(), uuid)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), cfg.Personal.Username, cfg2.Personal.Username)
-	require.Equal(s.T(), cfg.Appearance.Theme, cfg2.Appearance.Theme)
+	require.Equal(s.T(), cfg.Settings.Theme, cfg2.Settings.Theme)
 	require.Equal(s.T(), *cfg.Criteria.PriceRange.From, *cfg2.Criteria.PriceRange.From)
 	require.Equal(s.T(), cfg.Criteria.Gender, cfg2.Criteria.Gender)
 	_, err = s.app.GetConfig(context.Background(), uuid+"d")
-	require.ErrorIs(s.T(), err, ErrConfigNotFound)
+	require.ErrorIs(s.T(), err, common.ErrConfigNotFound)
 }
 
 func (s *LogicSuite) TestUpdateGetConfig() {
 	uuid := "797bcfb5-ca07-11ec-a6c3-049226c2eb3c"
 	cfg := models.Config{
-		Personal: models.Personal{
+		Personal: &models.Personal{
 			Username:   "bober",
 			AvatarLink: "",
 			Gender:     models.Male,
 			Age:        19,
 		},
-		Criteria: models.SearchCriteria{
-			Regions:    []models.Region{{ID: 1}, {ID: 3}},
+		Criteria: &models.SearchCriteria{
+			Regions:    []int64{1, 3},
 			PriceRange: models.NewRange(20000, 45000),
 			Gender:     0,
 			AgeRange:   models.NewRange(22, 0),
 		},
-		Appearance: models.Appearance{Theme: 12},
+		Settings: &models.Settings{Theme: 12},
 	}
 	cfg.SetUUID(uuid)
 	err := s.app.SaveConfig(context.Background(), &cfg)
 	require.NoError(s.T(), err)
 	cfg = models.Config{
-		Personal: models.Personal{
+		Personal: &models.Personal{
 			Username:   "gobel",
 			AvatarLink: "",
 			Gender:     models.Male,
 			Age:        25,
 		},
-		Criteria: models.SearchCriteria{
-			Regions:    []models.Region{{ID: 3}, {ID: 5}},
+		Criteria: &models.SearchCriteria{
+			Regions:    []int64{1, 3},
 			PriceRange: models.NewRange(30000, 55000),
 			Gender:     models.Female,
 			AgeRange:   models.NewRange(22, 0),
 		},
-		Appearance: models.Appearance{Theme: 22},
+		Settings: &models.Settings{Theme: 22},
 	}
 	cfg.SetUUID(uuid)
 	err = s.app.SaveConfig(context.Background(), &cfg)
@@ -133,7 +119,7 @@ func (s *LogicSuite) TestUpdateGetConfig() {
 	cfg2, err := s.app.GetConfig(context.Background(), uuid)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), cfg.Personal.Username, cfg2.Personal.Username)
-	require.Equal(s.T(), cfg.Appearance.Theme, cfg2.Appearance.Theme)
+	require.Equal(s.T(), cfg.Settings.Theme, cfg2.Settings.Theme)
 	require.Equal(s.T(), *cfg.Criteria.PriceRange.From, *cfg2.Criteria.PriceRange.From)
 	require.Equal(s.T(), cfg.Criteria.Regions, cfg2.Criteria.Regions)
 }
@@ -141,8 +127,8 @@ func (s *LogicSuite) TestUpdateGetConfig() {
 func (s *LogicSuite) TestSaveViolateConstraint() {
 	uuid := "797bcfb5-ca07-11ec-a6c3-049226c2eb3c"
 	cfg := models.Config{
-		Criteria: models.SearchCriteria{
-			Regions:    []models.Region{{ID: 1}, {ID: 64}},
+		Criteria: &models.SearchCriteria{
+			Regions:    []int64{1, 64},
 			PriceRange: models.NewRange(20000, 45000),
 			Gender:     0,
 			AgeRange:   models.NewRange(22, 0),
@@ -150,19 +136,19 @@ func (s *LogicSuite) TestSaveViolateConstraint() {
 	}
 	cfg.SetUUID(uuid)
 	err := s.app.SaveConfig(context.Background(), &cfg)
-	require.NoError(s.T(), err)
+	require.Error(s.T(), err)
 }
 
 func (s *LogicSuite) TestLikeGetLiked() {
-	cfg := models.Config{}
+	cfg := models.Config{Personal: &models.Personal{}, Criteria: &models.SearchCriteria{}}
 	cfg.SetUUID("first")
 	err := s.app.SaveConfig(context.Background(), &cfg)
 	require.NoError(s.T(), err)
-	cfg2 := models.Config{}
+	cfg2 := models.Config{Personal: &models.Personal{}, Criteria: &models.SearchCriteria{}}
 	cfg2.SetUUID("second")
 	err = s.app.SaveConfig(context.Background(), &cfg2)
 	require.NoError(s.T(), err)
-	cfg3 := models.Config{}
+	cfg3 := models.Config{Personal: &models.Personal{}, Criteria: &models.SearchCriteria{}}
 	cfg3.SetUUID("third")
 	err = s.app.SaveConfig(context.Background(), &cfg3)
 	require.NoError(s.T(), err)
@@ -171,7 +157,7 @@ func (s *LogicSuite) TestLikeGetLiked() {
 	require.NoError(s.T(), err)
 	err = s.app.Like(context.Background(), cfg.UUID, cfg3.UUID, false)
 	require.NoError(s.T(), err)
-	liked, err := s.app.ListLikedProfiles(context.Background(), cfg.UUID, 10, 1)
+	liked, err := s.app.ListLikedProfiles(context.Background(), cfg.UUID, 10, 0)
 	require.NoError(s.T(), err)
 	require.Len(s.T(), liked, 1)
 	require.Equal(s.T(), liked[0].Personal.UUID, cfg3.UUID)
@@ -181,15 +167,15 @@ func (s *LogicSuite) TestLikeGetLiked() {
 }
 
 func (s *LogicSuite) TestDislikeGetDisliked() {
-	cfg := models.Config{}
+	cfg := models.Config{Personal: &models.Personal{}, Criteria: &models.SearchCriteria{}}
 	cfg.SetUUID("first")
 	err := s.app.SaveConfig(context.Background(), &cfg)
 	require.NoError(s.T(), err)
-	cfg2 := models.Config{}
+	cfg2 := models.Config{Personal: &models.Personal{}, Criteria: &models.SearchCriteria{}}
 	cfg2.SetUUID("second")
 	err = s.app.SaveConfig(context.Background(), &cfg2)
 	require.NoError(s.T(), err)
-	cfg3 := models.Config{}
+	cfg3 := models.Config{Personal: &models.Personal{}, Criteria: &models.SearchCriteria{}}
 	cfg3.SetUUID("third")
 	err = s.app.SaveConfig(context.Background(), &cfg3)
 	require.NoError(s.T(), err)
@@ -208,14 +194,14 @@ func (s *LogicSuite) TestDislikeGetDisliked() {
 }
 
 func (s *LogicSuite) TestGetMatchesByRegion() {
-	cfg := models.Config{Criteria: models.SearchCriteria{
-		Regions: []models.Region{{ID: 1}, {ID: 5}},
+	cfg := models.Config{Criteria: &models.SearchCriteria{
+		Regions: []int64{1, 5},
 	}}
 	cfg.SetUUID("first")
 	err := s.app.SaveConfig(context.Background(), &cfg)
 	require.NoError(s.T(), err)
-	cfg2 := models.Config{Criteria: models.SearchCriteria{
-		Regions: []models.Region{{ID: 2}, {ID: 3}},
+	cfg2 := models.Config{Criteria: &models.SearchCriteria{
+		Regions: []int64{2, 3},
 	}}
 	cfg2.SetUUID("second")
 	err = s.app.SaveConfig(context.Background(), &cfg2)
@@ -225,8 +211,8 @@ func (s *LogicSuite) TestGetMatchesByRegion() {
 	require.NoError(s.T(), err)
 	require.Len(s.T(), matches, 0)
 
-	cfg3 := models.Config{Criteria: models.SearchCriteria{
-		Regions: []models.Region{{ID: 2}, {ID: 5}},
+	cfg3 := models.Config{Criteria: &models.SearchCriteria{
+		Regions: []int64{2, 5},
 	}}
 	cfg3.SetUUID("third")
 	err = s.app.SaveConfig(context.Background(), &cfg3)
@@ -249,7 +235,7 @@ func (s *LogicSuite) TestGetMatchesByRegion() {
 }
 
 func (s *LogicSuite) TestGetMatchesBySexAndAge() {
-	cfg := models.Config{Criteria: models.SearchCriteria{
+	cfg := models.Config{Criteria: &models.SearchCriteria{
 		Gender:   models.Male,
 		AgeRange: models.NewRange(22, 30),
 	}}
@@ -257,8 +243,8 @@ func (s *LogicSuite) TestGetMatchesBySexAndAge() {
 	err := s.app.SaveConfig(context.Background(), &cfg)
 	require.NoError(s.T(), err)
 	cfg2 := models.Config{
-		Personal: models.Personal{Gender: models.Female, Age: 28},
-		Criteria: models.SearchCriteria{
+		Personal: &models.Personal{Gender: models.Female, Age: 28},
+		Criteria: &models.SearchCriteria{
 			Gender:   models.Any,
 			AgeRange: models.NewRange(22, 30),
 		},
@@ -272,8 +258,8 @@ func (s *LogicSuite) TestGetMatchesBySexAndAge() {
 	require.Len(s.T(), matches, 0)
 
 	cfg3 := models.Config{
-		Personal: models.Personal{Gender: models.Male, Age: 28},
-		Criteria: models.SearchCriteria{
+		Personal: &models.Personal{Gender: models.Male, Age: 28},
+		Criteria: &models.SearchCriteria{
 			Gender:   models.Male,
 			AgeRange: models.NewRange(22, 30),
 		},
@@ -289,7 +275,7 @@ func (s *LogicSuite) TestGetMatchesBySexAndAge() {
 }
 
 func (s LogicSuite) TestGetMatchesMatchButMet() {
-	cfg := models.Config{Criteria: models.SearchCriteria{
+	cfg := models.Config{Criteria: &models.SearchCriteria{
 		Gender:   models.Male,
 		AgeRange: models.NewRange(22, 30),
 	}}
@@ -297,8 +283,8 @@ func (s LogicSuite) TestGetMatchesMatchButMet() {
 	err := s.app.SaveConfig(context.Background(), &cfg)
 	require.NoError(s.T(), err)
 	cfg2 := models.Config{
-		Personal: models.Personal{Gender: models.Male, Age: 28},
-		Criteria: models.SearchCriteria{
+		Personal: &models.Personal{Gender: models.Male, Age: 28},
+		Criteria: &models.SearchCriteria{
 			Gender:   models.Male,
 			AgeRange: models.NewRange(22, 30),
 		},

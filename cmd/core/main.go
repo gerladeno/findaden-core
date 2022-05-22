@@ -15,10 +15,10 @@ import (
 	"time"
 
 	"github.com/gerladeno/homie-core/internal"
-
 	"github.com/gerladeno/homie-core/internal/rest"
 	"github.com/gerladeno/homie-core/internal/storage"
 	"github.com/gerladeno/homie-core/pkg/logging"
+	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/sirupsen/logrus"
 )
 
@@ -36,7 +36,7 @@ var (
 func main() {
 	log := logging.GetLogger(true)
 	ctx := context.Background()
-	store, err := storage.New(log, pgDSN)
+	store, err := storage.New(ctx, log, pgDSN)
 	if err != nil {
 		log.Panicf("err initing pg: %v", err)
 	}

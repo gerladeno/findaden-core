@@ -34,26 +34,33 @@ const (
 )
 
 type Config struct {
-	UUID       string         `json:"uuid" gorm:"primarykey"`
-	Personal   Personal       `json:"personal" gorm:"foreignkey:UUID;references:UUID"`
-	Criteria   SearchCriteria `json:"criteria" gorm:"foreignkey:UUID;references:UUID"`
-	Appearance Appearance     `json:"appearance" gorm:"foreignkey:UUID;references:UUID"`
+	UUID     string          `json:"uuid"`
+	Personal *Personal       `json:"personal,omitempty"`
+	Criteria *SearchCriteria `json:"criteria,omitempty"`
+	Settings *Settings       `json:"settings,omitempty"`
 }
 
 func (c *Config) SetUUID(uuid string) {
 	c.UUID = uuid
-	c.Personal.UUID = uuid
-	c.Criteria.UUID = uuid
-	c.Appearance.UUID = uuid
+	if c.Personal != nil {
+		c.Personal.UUID = uuid
+	}
+	if c.Criteria != nil {
+		c.Criteria.UUID = uuid
+	}
+	if c.Settings != nil {
+		c.Settings.UUID = uuid
+	}
 }
 
 type Profile struct {
-	Personal Personal       `json:"personal"`
-	Criteria SearchCriteria `json:"criteria"`
+	UUID     string          `json:"uuid"`
+	Personal *Personal       `json:"personal,omitempty"`
+	Criteria *SearchCriteria `json:"criteria,omitempty"`
 }
 
 type Personal struct {
-	UUID       string `json:"uuid" gorm:"primarykey"`
+	UUID       string `json:"uuid"`
 	Username   string `json:"username"`
 	AvatarLink string `json:"avatar_link"`
 	Gender     Gender `json:"gender"`
@@ -61,26 +68,26 @@ type Personal struct {
 }
 
 type Relation struct {
-	UUID     string `gorm:"primaryKey"`
-	Target   string `gorm:"primaryKey"`
+	UUID     string
+	Target   string
 	Relation int8
 }
 
-type Appearance struct {
-	UUID  string `json:"uuid" gorm:"primarykey"`
+type Settings struct {
+	UUID  string `json:"uuid"`
 	Theme int64  `json:"theme"`
 }
 
 type SearchCriteria struct {
-	UUID       string   `json:"uuid" gorm:"primarykey"`
-	Regions    []Region `json:"regions" gorm:"many2many:uuid_regions"`
-	PriceRange Range    `json:"price_range" gorm:"embedded;embeddedPrefix:price_"`
-	Gender     Gender   `json:"gender"`
-	AgeRange   Range    `json:"age_range" gorm:"embedded;embeddedPrefix:age_"`
+	UUID       string  `json:"uuid"`
+	Regions    []int64 `json:"regions"`
+	PriceRange Range   `json:"price_range"`
+	Gender     Gender  `json:"gender"`
+	AgeRange   Range   `json:"age_range"`
 }
 
 type Region struct {
-	ID          int64  `json:"id" gorm:"primarykey"`
+	ID          int64  `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
 }

@@ -4,23 +4,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
-
-	"gorm.io/gorm"
-
 	"github.com/gerladeno/homie-core/internal/models"
 	"github.com/gerladeno/homie-core/internal/storage"
+	"github.com/gerladeno/homie-core/pkg/common"
 	"github.com/sirupsen/logrus"
 )
-
-var ErrConfigNotFound = errors.New("config not found")
 
 type Storage interface {
 	SaveConfig(ctx context.Context, config *models.Config) error
 	GetConfig(ctx context.Context, uuid string) (*models.Config, error)
 	GetRegions(ctx context.Context) ([]*models.Region, error)
 	UpsertRelation(ctx context.Context, relation *models.Relation) error
-	ListRelated(ctx context.Context, uuid string, relation storage.Relation, limit, offset int64) ([]*models.Config, error)
-	ListMatches(ctx context.Context, uuid string, count int64) ([]*models.Config, error)
+	ListRelated(ctx context.Context, uuid string, relation storage.Relation, limit, offset int64) ([]*models.Profile, error)
+	ListMatches(ctx context.Context, uuid string, count int64) ([]*models.Profile, error)
 }
 
 type App struct {
@@ -46,8 +42,8 @@ func (a *App) GetConfig(ctx context.Context, uuid string) (*models.Config, error
 	result, err := a.store.GetConfig(ctx, uuid)
 	switch {
 	case err == nil:
-	case errors.Is(err, gorm.ErrRecordNotFound):
-		return nil, ErrConfigNotFound
+	case errors.Is(err, common.ErrConfigNotFound):
+		return nil, common.ErrConfigNotFound
 	default:
 		err = fmt.Errorf("err getting config: %w", err)
 		a.log.Debug(err)
@@ -96,25 +92,17 @@ func (a *App) Dislike(ctx context.Context, uuid, targetUUID string) error {
 func (a *App) ListLikedProfiles(ctx context.Context, uuid string, limit, offset int64) ([]*models.Profile, error) {
 	liked, err := a.store.ListRelated(ctx, uuid, storage.Liked, limit, offset)
 	if err != nil {
-		return nil, fmt.Errorf("err getting list of liked")
+		return nil, fmt.Errorf("err getting list of liked: %w", err)
 	}
-	result := make([]*models.Profile, 0, len(liked))
-	for _, elem := range liked {
-		result = append(result, &models.Profile{Personal: elem.Personal, Criteria: elem.Criteria})
-	}
-	return result, nil
+	return liked, nil
 }
 
 func (a *App) ListDislikedProfiles(ctx context.Context, uuid string, limit, offset int64) ([]*models.Profile, error) {
 	disliked, err := a.store.ListRelated(ctx, uuid, storage.Disliked, limit, offset)
 	if err != nil {
-		return nil, fmt.Errorf("err getting list of liked")
+		return nil, fmt.Errorf("err getting list of disliked: %w", err)
 	}
-	result := make([]*models.Profile, 0, len(disliked))
-	for _, elem := range disliked {
-		result = append(result, &models.Profile{Personal: elem.Personal, Criteria: elem.Criteria})
-	}
-	return result, nil
+	return disliked, nil
 }
 
 func (a *App) GetMatches(ctx context.Context, uuid string, count int64) ([]*models.Profile, error) {
@@ -122,9 +110,5 @@ func (a *App) GetMatches(ctx context.Context, uuid string, count int64) ([]*mode
 	if err != nil {
 		return nil, fmt.Errorf("err getting list of matches")
 	}
-	result := make([]*models.Profile, 0, len(matches))
-	for _, elem := range matches {
-		result = append(result, &models.Profile{Personal: elem.Personal, Criteria: elem.Criteria})
-	}
-	return result, nil
+	return matches, nil
 }
