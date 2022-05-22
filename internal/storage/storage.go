@@ -6,12 +6,13 @@ import (
 	"embed"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/georgysavva/scany/pgxscan"
 	"github.com/gerladeno/homie-core/pkg/common"
 	"github.com/jackc/pgx/v4/pgxpool"
 	migrate "github.com/rubenv/sql-migrate"
-	"strings"
-	"time"
 
 	"github.com/gerladeno/homie-core/internal/models"
 	"github.com/gerladeno/homie-core/pkg/metrics"
@@ -51,13 +52,13 @@ func New(ctx context.Context, log *logrus.Logger, dsn string) (*Storage, error) 
 	fn := func() float64 {
 		return 1.0
 	}
-	s.metrics = metrics.NewDBClient(config.ConnConfig.Database, config.ConnConfig.Host, fmt.Sprintf("%d", config.ConnConfig.Port), fn).AutoRegister()
+	s.metrics = metrics.NewDBClient(config.ConnConfig.Database, config.ConnConfig.Host,
+		fmt.Sprintf("%d", config.ConnConfig.Port), fn).AutoRegister()
 	return &s, nil
 }
 
 func (s *Storage) Exec(ctx context.Context, query string) error {
-	_, err := s.db.Exec(ctx, query)
-	if err != nil {
+	if _, err := s.db.Exec(ctx, query); err != nil {
 		return fmt.Errorf("err executing %s: %w", query, err)
 	}
 	return nil
@@ -119,30 +120,30 @@ func (s *Storage) SaveConfig(ctx context.Context, config *models.Config) error {
 			s.log.Warnf("err rolling back tx during saving config: %v", err)
 		}
 	}()
-	if err = s.upsertConfig(tx, ctx, config); err != nil {
+	if err = s.upsertConfig(ctx, tx, config); err != nil {
 		return fmt.Errorf("err saving config: %w", err)
 	}
-	if err = s.upsertSettings(tx, ctx, config.Settings); err != nil {
+	if err = s.upsertSettings(ctx, tx, config.Settings); err != nil {
 		return fmt.Errorf("err saving config: %w", err)
 	}
-	if err = s.upsertPersonal(tx, ctx, config.Personal); err != nil {
+	if err = s.upsertPersonal(ctx, tx, config.Personal); err != nil {
 		return fmt.Errorf("err saving config: %w", err)
 	}
-	if err = s.upsertCriteria(tx, ctx, config.Criteria); err != nil {
+	if err = s.upsertCriteria(ctx, tx, config.Criteria); err != nil {
 		return fmt.Errorf("err saving config: %w", err)
 	}
 	if config.Criteria != nil && config.Criteria.Regions != nil {
-		if err = s.updateCriteriaRegions(tx, ctx, config.Criteria.UUID, config.Criteria.Regions); err != nil {
+		if err = s.updateCriteriaRegions(ctx, tx, config.Criteria.UUID, config.Criteria.Regions); err != nil {
 			return fmt.Errorf("err saving config: %w", err)
 		}
 	}
 	if err = tx.Commit(ctx); err != nil {
-		return fmt.Errorf("err commiting save config transaction: %w", err)
+		return fmt.Errorf("err committing save config transaction: %w", err)
 	}
 	return nil
 }
 
-func (s *Storage) upsertConfig(tx pgx.Tx, ctx context.Context, config *models.Config) error {
+func (s *Storage) upsertConfig(ctx context.Context, tx pgx.Tx, config *models.Config) error {
 	query := `
 INSERT INTO config (uuid, created, updated)
 VALUES ($1, $2, $3)
@@ -159,7 +160,7 @@ ON CONFLICT (uuid) DO UPDATE SET updated = EXCLUDED.updated
 	return nil
 }
 
-func (s *Storage) upsertSettings(tx pgx.Tx, ctx context.Context, settings *models.Settings) error {
+func (s *Storage) upsertSettings(ctx context.Context, tx pgx.Tx, settings *models.Settings) error {
 	if settings == nil {
 		return nil
 	}
@@ -178,7 +179,7 @@ ON CONFLICT (uuid) DO UPDATE SET theme = excluded.theme
 	return nil
 }
 
-func (s *Storage) upsertPersonal(tx pgx.Tx, ctx context.Context, personal *models.Personal) error {
+func (s *Storage) upsertPersonal(ctx context.Context, tx pgx.Tx, personal *models.Personal) error {
 	if personal == nil {
 		return nil
 	}
@@ -200,7 +201,7 @@ ON CONFLICT (uuid) DO UPDATE SET username = excluded.username,
 	return nil
 }
 
-func (s *Storage) upsertCriteria(tx pgx.Tx, ctx context.Context, criteria *models.SearchCriteria) error {
+func (s *Storage) upsertCriteria(ctx context.Context, tx pgx.Tx, criteria *models.SearchCriteria) error {
 	if criteria == nil {
 		return nil
 	}
@@ -230,7 +231,7 @@ ON CONFLICT (uuid) DO UPDATE SET price_from = excluded.price_from,
 	return nil
 }
 
-func (s *Storage) updateCriteriaRegions(tx pgx.Tx, ctx context.Context, uuid string, regions []int64) error {
+func (s *Storage) updateCriteriaRegions(ctx context.Context, tx pgx.Tx, uuid string, regions []int64) error {
 	query := `
 DELETE FROM uuid_regions
 WHERE uuid = $1
@@ -239,7 +240,7 @@ WHERE uuid = $1
 	if err != nil {
 		return fmt.Errorf("err deleting old regions for %s: %w", uuid, err)
 	}
-	var rows [][]interface{}
+	rows := make([][]interface{}, 0, len(regions))
 	for _, region := range regions {
 		rows = append(rows, []interface{}{uuid, region})
 	}
@@ -407,7 +408,7 @@ FROM (SELECT search_criteria.uuid,
        gender,
        age_from,
        age_to
-FROM search_criteria LEFT JOIN uuid_regions ON search_criteria.uuid = uuid_regions.uuid
+FROM search_criteria
 WHERE search_criteria.uuid IN (%[1]s)) AS criteria
 JOIN (SELECT uuid, username, avatar_link, gender, age FROM personal WHERE uuid IN (%[1]s)
 ) AS personal
@@ -415,8 +416,8 @@ ON personal.uuid = criteria.uuid`, quotedUUIDs)
 	err := pgxscan.Select(ctx, s.db, &dbProfiles, query)
 	switch {
 	case err == nil:
-		for _, profile := range dbProfiles {
-			*profiles = append(*profiles, DBProfile2Profile(&profile))
+		for i := range dbProfiles {
+			*profiles = append(*profiles, DBProfile2Profile(&dbProfiles[i]))
 		}
 	case errors.Is(err, pgx.ErrNoRows):
 	default:
@@ -426,17 +427,41 @@ ON personal.uuid = criteria.uuid`, quotedUUIDs)
 }
 
 func (s *Storage) ListMatches(ctx context.Context, uuid string, count int64) ([]*models.Profile, error) {
-	config, err := s.GetConfig(ctx, uuid)
-	if err != nil {
-		return nil, fmt.Errorf("err getting matches: %w", err)
-	}
 	var uuids []string
-	err = pgxscan.Select(ctx, s.db, &uuids,
+	err := pgxscan.Select(ctx, s.db, &uuids,
 		`
-SELECT DISTINCT uuid
-FROM uuid_regions
-WHERE region_id IN (SELECT region_id FROM uuid_regions WHERE uuid = $1);
-`, uuid)
+WITH uuids AS (SELECT DISTINCT uuid
+               FROM uuid_regions
+               WHERE region_id IN (SELECT region_id FROM uuid_regions WHERE uuid = $1)
+                 AND uuid NOT IN (SELECT DISTINCT target FROM relations WHERE uuid = $1)
+                 AND uuid != $1),
+     criteria AS (SELECT price_from, price_to, gender, age_from, age_to FROM search_criteria WHERE uuid = $1),
+     self AS (SELECT gender, age FROM personal WHERE uuid = $1)
+SELECT uuid
+FROM search_criteria
+WHERE 1 = 1
+  AND uuid IN (SELECT criteria.uuid as uuid
+               FROM (SELECT uuid
+                     FROM personal
+                     WHERE 1 = 1
+                       AND uuid IN (SELECT * FROM uuids)
+                       AND (gender = (SELECT gender FROM criteria) OR
+                            (SELECT gender FROM criteria) = 0) -- if 0 client doesn't care
+                       AND age >= (SELECT COALESCE(age_from, 0) FROM criteria)
+                       AND age <= (SELECT COALESCE(age_to, 999) FROM criteria)) AS personal
+                        JOIN (SELECT uuid
+                              FROM search_criteria
+                              WHERE 1 = 1
+                                AND uuid IN (SELECT * FROM uuids)
+                                AND COALESCE(price_from, 0) <= (SELECT COALESCE(price_to, 999999999999) FROM criteria)
+                                AND COALESCE(price_to, 999999999999) >=
+                                    (SELECT COALESCE(price_from, 0) FROM criteria)) AS criteria
+                             ON personal.uuid = criteria.uuid)
+  AND (gender = 0 OR gender = (SELECT gender FROM self))
+  AND COALESCE(age_from, 0) <= (SELECT age FROM self)
+  AND COALESCE(age_to, 999) >= (SELECT age FROM self)
+LIMIT $2
+`, uuid, count)
 	switch {
 	case err == nil:
 	case errors.Is(err, pgx.ErrNoRows):
@@ -444,92 +469,12 @@ WHERE region_id IN (SELECT region_id FROM uuid_regions WHERE uuid = $1);
 	default:
 		return nil, fmt.Errorf("err selecting matches by region: %w", err)
 	}
-	matchingUUIDS, err := s.getMatchingUUIDs(ctx, config)
-	if err != nil {
-		return nil, err
-	}
-	var metUUIDs []string
-	err = pgxscan.Select(ctx, s.db, &metUUIDs,
-		`
-SELECT DISTINCT target
-FROM relations
-WHERE uuid = $1;
-`, uuid)
 	var result []*models.Profile
-	err = s.getProfiles(ctx, &result, matchingUUIDS)
+	err = s.getProfiles(ctx, &result, uuids)
 	if err != nil {
 		return nil, fmt.Errorf("err getting matches for %s: %w", uuid, err)
 	}
 	return result, nil
-}
-
-const queryJoinRegions = `
-select distinct others.search_criteria_uuid
-from (select *
-      from uuid_regions
-      where search_criteria_uuid = ?) own
-         join (select *
-               from uuid_regions
-               where search_criteria_uuid != ?) others
-              on own.region_id = others.region_id
-`
-
-func (s *Storage) getMatchingUUIDs(ctx context.Context, config *models.Config) ([]string, error) {
-	query := `
-SELECT uuid FROM personal
-WHERE 1=1
-`
-	if config.Criteria.AgeRange.From != nil {
-		query += fmt.Sprintf("AND age >= %f", *config.Criteria.AgeRange.From)
-	}
-	if config.Criteria.AgeRange.To != nil {
-		query += fmt.Sprintf("AND age >= %f", *config.Criteria.AgeRange.To)
-	}
-	if config.Criteria.Gender != models.Any {
-		query += fmt.Sprintf("AND gender >= %d", config.Criteria.Gender)
-	}
-	var uuidsByPersonal []string
-	if err := pgxscan.Select(ctx, s.db, &uuidsByPersonal, query); err != nil {
-		return nil, err
-	}
-	if len(uuidsByPersonal) == 0 {
-		return nil, nil
-	}
-	query = `
-SELECT uuid FROM search_criteria
-WHERE 1=1
-`
-	if config.Criteria.PriceRange.From != nil {
-		query += fmt.Sprintf("AND price_to >= %f", *config.Criteria.PriceRange.From)
-	}
-	//if config.Criteria.PriceRange.To != nil {
-	//	criteria = criteria.Where("from <= ?", *config.Criteria.PriceRange.To)
-	//}
-	//if len(config.Criteria.Regions) > 0 {
-	//	criteria = criteria.Raw(queryJoinRegions, config.UUID, config.UUID)
-	//}
-	var uuidsByCriteria []string
-	//if err := criteria.Find(&uuidsByCriteria).Error; err != nil {
-	//	return nil, err
-	//}
-	//if len(uuidsByCriteria) == 0 {
-	//	return nil, nil
-	//}
-	return findMatchingStrings(uuidsByPersonal, uuidsByCriteria), nil
-}
-
-func findMatchingStrings(s1 []string, s2 []string) []string {
-	var result []string
-	m := make(map[string]struct{})
-	for _, s := range s1 {
-		m[s] = struct{}{}
-	}
-	for _, s := range s2 {
-		if _, ok := m[s]; ok {
-			result = append(result, s)
-		}
-	}
-	return result
 }
 
 func wrapQuoted(elems []string) []string {

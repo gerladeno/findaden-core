@@ -3,8 +3,9 @@ package internal
 import (
 	"context"
 	_ "embed"
-	"github.com/gerladeno/homie-core/pkg/common"
 	"testing"
+
+	"github.com/gerladeno/homie-core/pkg/common"
 
 	"github.com/gerladeno/homie-core/internal/models"
 	"github.com/gerladeno/homie-core/internal/storage"
@@ -25,8 +26,6 @@ func (s *LogicSuite) SetupSuite() {
 	require.NoError(s.T(), err)
 	err = store.Migrate()
 	require.NoError(s.T(), err)
-	//err = store.Truncate(context.Background(), "regions")
-	//require.NoError(s.T(), err)
 	s.app = NewApp(log, store)
 }
 
@@ -46,7 +45,7 @@ func (s *LogicSuite) TearDownSuite() {
 }
 
 func (s *LogicSuite) TestSaveGetConfig() {
-	uuid := "797bcfb5-ca07-11ec-a6c3-049226c2eb3c"
+	uuid := "797bcfb5-ca07-11ec-a6c3-049226c2fb3c"
 	cfg := models.Config{
 		Personal: &models.Personal{
 			Username:   "bober",
@@ -194,15 +193,21 @@ func (s *LogicSuite) TestDislikeGetDisliked() {
 }
 
 func (s *LogicSuite) TestGetMatchesByRegion() {
-	cfg := models.Config{Criteria: &models.SearchCriteria{
-		Regions: []int64{1, 5},
-	}}
+	cfg := models.Config{
+		Personal: &models.Personal{Gender: 1, Age: 25},
+		Criteria: &models.SearchCriteria{
+			Regions: []int64{1, 5},
+		},
+	}
 	cfg.SetUUID("first")
 	err := s.app.SaveConfig(context.Background(), &cfg)
 	require.NoError(s.T(), err)
-	cfg2 := models.Config{Criteria: &models.SearchCriteria{
-		Regions: []int64{2, 3},
-	}}
+	cfg2 := models.Config{
+		Personal: &models.Personal{Gender: 1, Age: 25},
+		Criteria: &models.SearchCriteria{
+			Regions: []int64{2, 3},
+		},
+	}
 	cfg2.SetUUID("second")
 	err = s.app.SaveConfig(context.Background(), &cfg2)
 	require.NoError(s.T(), err)
@@ -211,9 +216,12 @@ func (s *LogicSuite) TestGetMatchesByRegion() {
 	require.NoError(s.T(), err)
 	require.Len(s.T(), matches, 0)
 
-	cfg3 := models.Config{Criteria: &models.SearchCriteria{
-		Regions: []int64{2, 5},
-	}}
+	cfg3 := models.Config{
+		Personal: &models.Personal{Gender: 1, Age: 25},
+		Criteria: &models.SearchCriteria{
+			Regions: []int64{2, 5},
+		},
+	}
 	cfg3.SetUUID("third")
 	err = s.app.SaveConfig(context.Background(), &cfg3)
 	require.NoError(s.T(), err)
@@ -235,16 +243,21 @@ func (s *LogicSuite) TestGetMatchesByRegion() {
 }
 
 func (s *LogicSuite) TestGetMatchesBySexAndAge() {
-	cfg := models.Config{Criteria: &models.SearchCriteria{
-		Gender:   models.Male,
-		AgeRange: models.NewRange(22, 30),
-	}}
+	cfg := models.Config{
+		Personal: &models.Personal{Gender: models.Male, Age: 25},
+		Criteria: &models.SearchCriteria{
+			Regions:  []int64{2, 3},
+			Gender:   models.Male,
+			AgeRange: models.NewRange(22, 30),
+		},
+	}
 	cfg.SetUUID("first")
 	err := s.app.SaveConfig(context.Background(), &cfg)
 	require.NoError(s.T(), err)
 	cfg2 := models.Config{
 		Personal: &models.Personal{Gender: models.Female, Age: 28},
 		Criteria: &models.SearchCriteria{
+			Regions:  []int64{2, 3},
 			Gender:   models.Any,
 			AgeRange: models.NewRange(22, 30),
 		},
@@ -260,11 +273,12 @@ func (s *LogicSuite) TestGetMatchesBySexAndAge() {
 	cfg3 := models.Config{
 		Personal: &models.Personal{Gender: models.Male, Age: 28},
 		Criteria: &models.SearchCriteria{
+			Regions:  []int64{1, 2},
 			Gender:   models.Male,
 			AgeRange: models.NewRange(22, 30),
 		},
 	}
-	cfg3.SetUUID("first")
+	cfg3.SetUUID("third")
 	err = s.app.SaveConfig(context.Background(), &cfg3)
 	require.NoError(s.T(), err)
 
@@ -275,16 +289,21 @@ func (s *LogicSuite) TestGetMatchesBySexAndAge() {
 }
 
 func (s LogicSuite) TestGetMatchesMatchButMet() {
-	cfg := models.Config{Criteria: &models.SearchCriteria{
-		Gender:   models.Male,
-		AgeRange: models.NewRange(22, 30),
-	}}
+	cfg := models.Config{
+		Personal: &models.Personal{Gender: models.Male, Age: 28},
+		Criteria: &models.SearchCriteria{
+			Regions:  []int64{1, 2},
+			Gender:   models.Male,
+			AgeRange: models.NewRange(22, 30),
+		},
+	}
 	cfg.SetUUID("first")
 	err := s.app.SaveConfig(context.Background(), &cfg)
 	require.NoError(s.T(), err)
 	cfg2 := models.Config{
 		Personal: &models.Personal{Gender: models.Male, Age: 28},
 		Criteria: &models.SearchCriteria{
+			Regions:  []int64{1, 2},
 			Gender:   models.Male,
 			AgeRange: models.NewRange(22, 30),
 		},
