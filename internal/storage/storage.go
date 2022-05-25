@@ -335,7 +335,7 @@ FROM search_criteria WHERE uuid = $2`, uuid, uuid)
 
 func (s *Storage) GetRegions(ctx context.Context) ([]*models.Region, error) {
 	var regions []*models.Region
-	err := pgxscan.Select(ctx, s.db, &regions, "SELECT * FROM regions")
+	err := pgxscan.Select(ctx, s.db, &regions, "SELECT id, name, description FROM regions")
 	if err != nil {
 		return nil, fmt.Errorf("err getting regions: %w", err)
 	}
