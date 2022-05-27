@@ -40,6 +40,7 @@ type Storage struct {
 }
 
 func New(ctx context.Context, log *logrus.Logger, dsn string) (*Storage, error) {
+	log.Debugf("dsn: %s", dsn)
 	config, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
 		return nil, err
