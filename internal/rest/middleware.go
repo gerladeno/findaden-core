@@ -20,8 +20,8 @@ type idType string
 
 const uuidKey idType = `UUID`
 
-func (h *handler) auth(next http.Handler) http.Handler {
-	fn := func(w http.ResponseWriter, r *http.Request) {
+func (h *handler) jwtAuth(next http.Handler) http.Handler {
+	var fn http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
 			writeErrResponse(w, "Unauthorized", http.StatusUnauthorized)
@@ -50,7 +50,7 @@ func (h *handler) auth(next http.Handler) http.Handler {
 		r = r.WithContext(context.WithValue(r.Context(), uuidKey, id))
 		next.ServeHTTP(w, r)
 	}
-	return http.HandlerFunc(fn)
+	return fn
 }
 
 func parseToken(accessToken string, key *rsa.PublicKey) (string, error) {

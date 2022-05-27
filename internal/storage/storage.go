@@ -47,7 +47,7 @@ func New(ctx context.Context, log *logrus.Logger, dsn string) (*Storage, error) 
 	s := Storage{log: log.WithField("module", "storage"), dsn: dsn}
 	s.db, err = pgxpool.ConnectConfig(ctx, config)
 	if err != nil {
-		return nil, fmt.Errorf("err connecting to postgres")
+		return nil, fmt.Errorf("err connecting to postgres: %w", err)
 	}
 	fn := func() float64 {
 		return 1.0

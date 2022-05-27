@@ -68,20 +68,7 @@ create table search_criteria
     age_to     numeric
 );
 
-create table user_model
-(
-    uuid    text not null
-        constraint uuid_pk
-            primary key,
-    phone   text not null
-        constraint unique_phone
-            unique,
-    created timestamp default now(),
-    updated timestamp default now()
-);
 
-create index phone_idx
-    on user_model (phone);
 
 create table uuid_regions
 (
@@ -102,5 +89,4 @@ DROP TABLE personal CASCADE;
 DROP TABLE regions CASCADE;
 DROP TABLE relations CASCADE;
 DROP TABLE search_criteria CASCADE;
-DROP TABLE user_model CASCADE;
 DROP TABLE uuid_regions CASCADE;

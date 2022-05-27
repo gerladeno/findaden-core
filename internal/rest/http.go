@@ -54,11 +54,11 @@ func NewRouter(log *logrus.Logger, service Service, key *rsa.PublicKey, host, ve
 			r.Get("/regions", handler.getRegions)
 		})
 		r.Route("/public", func(r chi.Router) {
-			r.Use(handler.auth)
+			r.Use(handler.jwtAuth)
 			r.Route("/v1", func(r chi.Router) {
 				r.Group(func(r chi.Router) {
 					r.Get("/config", handler.getConfig)
-					r.Post("/config", handler.saveConfig)
+					r.Put("/config", handler.saveConfig)
 					r.Get("/matches", handler.getMatches)
 					r.Get("/like/{uuid}", handler.like)
 					r.Get("/dislike/{uuid}", handler.dislike)
