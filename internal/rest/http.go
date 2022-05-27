@@ -91,12 +91,14 @@ func versionHandler(version string) func(http.ResponseWriter, *http.Request) {
 
 func writeResponse(w http.ResponseWriter, data interface{}) {
 	response := JSONResponse{Data: data}
+	w.Header().Set("Content-type", "application/json")
 	_ = json.NewEncoder(w).Encode(response) //nolint:errchkjson
 }
 
 func writeErrResponse(w http.ResponseWriter, message string, status int) {
 	response := JSONResponse{Data: []int{}, Error: &message, Code: &status}
 	w.WriteHeader(status)
+	w.Header().Set("Content-type", "application/json")
 	_ = json.NewEncoder(w).Encode(response) //nolint:errchkjson
 }
 
