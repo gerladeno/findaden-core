@@ -10,6 +10,7 @@ import (
 var (
 	ErrConfigNotFound       = errors.New("config not found")
 	ErrUnauthenticated      = errors.New("err user failed to authenticate")
+	ErrGenderNotSpecified   = errors.New("err gender not specified")
 	ErrInvalidSigningMethod = errors.New("err invalid signing method")
 	ErrInvalidAccessToken   = errors.New("err invalid access token")
 	ErrInvalidPhoneNumber   = errors.New("err invalid phone number")

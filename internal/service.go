@@ -59,6 +59,9 @@ func (a *App) GetAllChats(ctx context.Context, uuid string) ([]*models.Profile, 
 }
 
 func (a *App) SaveConfig(ctx context.Context, config *models.Config) error {
+	if config.Personal != nil && config.Personal.Gender == models.Any {
+		return common.ErrGenderNotSpecified
+	}
 	if err := a.store.SaveConfig(ctx, config); err != nil {
 		return fmt.Errorf("err saving config: %w", err)
 	}

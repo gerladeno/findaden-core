@@ -40,12 +40,18 @@ func (h *handler) saveConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var config models.Config
-	if err := json.NewDecoder(r.Body).Decode(&config); err != nil || config.Personal.Gender == models.Any {
+	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
 		writeErrResponse(w, fmt.Sprintf("%s: %v", http.StatusText(http.StatusBadRequest), err), http.StatusBadRequest)
 		return
 	}
 	config.SetUUID(uuid)
-	if err := h.service.SaveConfig(r.Context(), &config); err != nil {
+	err := h.service.SaveConfig(r.Context(), &config)
+	switch {
+	case err == nil:
+	case errors.Is(err, common.ErrGenderNotSpecified):
+		writeErrResponse(w, fmt.Sprintf("%s: %v", http.StatusText(http.StatusBadRequest), err), http.StatusBadRequest)
+		return
+	default:
 		h.log.Warnf("err saving config: %v", err)
 		writeErrResponse(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
